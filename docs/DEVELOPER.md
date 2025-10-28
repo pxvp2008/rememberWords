@@ -304,7 +304,7 @@ npm >= 8.0.0
 
 ```bash
 # 克隆项目
-git clone https://github.com/your-username/rememberWords.git
+git clone https://github.com/pxvp2008/rememberWords.git
 cd rememberWords
 
 # 安装依赖
@@ -704,8 +704,8 @@ git commit -m "test: add unit tests for useExcel"
 
 ## 📞 联系方式
 
-- **项目主页**：https://github.com/your-username/rememberWords
-- **问题反馈**：https://github.com/your-username/rememberWords/issues
-- **讨论区**：https://github.com/your-username/rememberWords/discussions
+- **项目主页**：https://github.com/pxvp2008/rememberWords
+- **问题反馈**：https://github.com/pxvp2008/rememberWords/issues
+- **讨论区**：https://github.com/pxvp2008/rememberWords/discussions
 
 感谢您对项目的关注和贡献！🎉

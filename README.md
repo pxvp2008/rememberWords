@@ -5,7 +5,7 @@
 
 <div align="center">
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen?style=flat-square)](https://github.com/your-username/rememberWords/actions)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen?style=flat-square)](https://github.com/pxvp2008/rememberWords/actions)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](CONTRIBUTING.md)
 
@@ -28,14 +28,10 @@
 ## 📋 目录
 
 - [快速开始](#-快速开始)
-- [功能演示](#-功能演示)
 - [核心算法](#-核心算法)
 - [技术栈](#️-技术栈)
 - [项目结构](#-项目结构)
 - [使用指南](#-使用指南)
-- [开发文档](#-开发文档)
-- [贡献指南](#-贡献指南)
-- [许可证](#-许可证)
 
 ## 🚀 快速开始
 
@@ -49,7 +45,7 @@
 
 ```bash
 # 克隆项目
-git clone https://github.com/your-username/rememberWords.git
+git clone https://github.com/pxvp2008/rememberWords.git
 cd rememberWords
 
 # 安装依赖
@@ -63,23 +59,6 @@ npm run build
 ```
 
 访问 [http://localhost:3000](http://localhost:3000) 查看应用。
-
-## 🎬 功能演示
-
-### 📊 学习计划统计
-<div align="center">
-  <img src="https://github.com/your-username/rememberWords/assets/screenshots/stats-overview.png" alt="统计概览" width="600">
-</div>
-
-### 📅 日历视图
-<div align="center">
-  <img src="https://github.com/your-username/rememberWords/assets/screenshots/calendar-view.png" alt="日历视图" width="600">
-</div>
-
-### 📋 列表视图
-<div align="center">
-  <img src="https://github.com/your-username/rememberWords/assets/screenshots/list-view.png" alt="列表视图" width="600">
-</div>
 
 ## 🧠 核心算法
 
@@ -246,6 +225,6 @@ npm run build:check
 
 **如果这个项目对您有帮助，请给它一个 ⭐**
 
-Made with ❤️ by [RememberWords Team](https://github.com/your-username/rememberWords)
+Made with ❤️ by [RememberWords Team](https://github.com/pxvp2008/rememberWords)
 
 </div>
