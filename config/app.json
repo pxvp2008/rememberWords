@@ -1,0 +1,51 @@
+{
+  "app": {
+    "name": "艾宾浩斯学习计划工具",
+    "shortName": "记忆单词工具",
+    "version": "1.0.0",
+    "description": "基于艾宾浩斯遗忘曲线的科学学习方案"
+  },
+  "server": {
+    "port": 3080,
+    "host": "localhost",
+    "https": false,
+    "cors": true,
+    "open": true
+  },
+  "build": {
+    "outDir": "dist",
+    "assetsDir": "assets",
+    "sourcemap": false,
+    "minify": "terser"
+  },
+  "defaults": {
+    "learning": {
+      "period": 30,
+      "newWordsPerDay": 5,
+      "maxReviewPerDay": 10,
+      "ebbinghausIntervals": [1, 2, 4, 7, 15]
+    },
+    "ui": {
+      "language": "zh-CN",
+      "theme": "default",
+      "pageSize": 20
+    },
+    "import": {
+      "maxFileSize": "10MB",
+      "maxWordCount": 1000,
+      "supportedFormats": [".xlsx", ".xls", ".csv"]
+    }
+  },
+  "storage": {
+    "prefix": "ebbinghaus_",
+    "localStorage": true,
+    "sessionStorage": false,
+    "encrypt": false
+  },
+  "features": {
+    "debug": false,
+    "analytics": false,
+    "pwa": false,
+    "darkMode": false
+  }
+}

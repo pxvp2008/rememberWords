@@ -1,0 +1,24 @@
+{
+  "server": {
+    "port": 3001,
+    "host": "localhost",
+    "https": false,
+    "cors": true,
+    "open": true
+  },
+  "build": {
+    "sourcemap": true,
+    "minify": false
+  },
+  "defaults": {
+    "learning": {
+      "period": 15,
+      "newWordsPerDay": 5,
+      "maxReviewPerDay": 15
+    }
+  },
+  "features": {
+    "debug": true,
+    "analytics": false
+  }
+}

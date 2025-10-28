@@ -1,0 +1,18 @@
+{
+  "server": {
+    "port": 3000,
+    "host": "0.0.0.0",
+    "https": true,
+    "cors": false,
+    "open": false
+  },
+  "build": {
+    "sourcemap": false,
+    "minify": "esbuild"
+  },
+  "features": {
+    "debug": false,
+    "analytics": true,
+    "pwa": true
+  }
+}
