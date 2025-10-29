@@ -41,101 +41,288 @@ export function useEbbinghaus() {
     logger.log(`📊 输入参数: 单词数=${words.length}, 每日新学=${settings.dailyNew}, 每日最大复习=${settings.maxReview}`)
     logger.log(`📅 起始日期: ${settings.startDate}`)
     logger.log(`🔄 艾宾浩斯间隔: [${EBBINGHAUS_INTERVALS.join(', ')}]天`)
+    logger.log(`🚫 跳过周末: ${settings.skipWeekends ? '是' : '否'}`)
 
     const tasks: DailyTask[] = []
     /** 复习任务队列，存储所有待复习的单词 */
-    const reviewQueue: Array<{ word: Word; reviewDate: string; reviewCount: number }> = []
+    let reviewQueue: Array<{ word: Word; reviewDate: string; reviewCount: number }> = []
 
     let wordIndex = 0
 
-    // 为主周期的每一天生成学习任务
-    for (let day = 0; day < settings.period; day++) {
-      const dateString = DateUtils.addDays(settings.startDate, day)
+    if (settings.skipWeekends) {
+      // === 跳过周末的模式 ===
+      logger.log('📆 使用跳过周末模式：只在工作日（周一至周五）安排学习')
 
-      const newWords: Word[] = []
-      const reviewWords: Word[] = []
+      // 按照原始算法逻辑，只是日期跳过周末
+      let dayIndex = 0
+      let actualCalendarDay = 0
+      const MAX_DAYS = 730 // 安全限制，最多730天（2年）
 
-      // === 步骤1：分配新学单词 ===
-      const newWordsCount = Math.min(settings.dailyNew, words.length - wordIndex)
-      for (let i = 0; i < newWordsCount; i++) {
-        if (wordIndex < words.length) {
-          const word = words[wordIndex]
-          newWords.push(word)
-          wordIndex++
+      while (wordIndex < words.length || reviewQueue.length > 0) {
+        // 安全限制：防止无限循环
+        if (actualCalendarDay > MAX_DAYS) {
+          logger.error('⚠️ 学习计划生成超时，强制终止')
+          break
+        }
 
-          // === 步骤2：为新单词安排复习任务 ===
-          // 基于艾宾浩斯遗忘曲线的5个关键时间点（1、2、4、7、15天后）
-          // 每个复习时间点都从学习日开始计算，这是正确的艾宾浩斯实现
-          const reviewDates: string[] = []
-          for (const interval of EBBINGHAUS_INTERVALS) {
-            const reviewDateStr = DateUtils.addDays(dateString, interval)
+        // 计算实际日期，跳过周末
+        let dateString = DateUtils.addDays(settings.startDate, actualCalendarDay)
+
+        // 如果是周末，跳过但不增加dayIndex（学习日计数器）
+        if (DateUtils.isWeekend(dateString)) {
+          logger.log(`🔄 跳过周末: ${dateString} (${DateUtils.getDayName(dateString)})`)
+          actualCalendarDay++
+          continue
+        }
+
+        dayIndex++ // 只有非周末才计入学习日
+
+        const newWords: Word[] = []
+        const reviewWords: Word[] = []
+
+        logger.log(`📅 学习日 ${dayIndex}: ${dateString} (${DateUtils.getDayName(dateString)})`)
+
+        // === 步骤1：分配新学单词 ===
+        const newWordsCount = Math.min(settings.dailyNew, words.length - wordIndex)
+        for (let i = 0; i < newWordsCount; i++) {
+          if (wordIndex < words.length) {
+            const word = words[wordIndex]
+            newWords.push(word)
+            wordIndex++
+
+            // === 步骤2：为新单词安排复习任务 ===
+            // 复习间隔按照自然日计算，但在跳过周末模式下需要转换为工作日
+            const reviewDates: string[] = []
+            for (const interval of EBBINGHAUS_INTERVALS) {
+              // 先按自然日计算复习日期
+              let reviewDateStr = DateUtils.addDays(dateString, interval)
+
+              // 如果复习日期是周末，顺延到下一个工作日
+              while (DateUtils.isWeekend(reviewDateStr)) {
+                reviewDateStr = DateUtils.addDays(reviewDateStr, 1)
+              }
+
+              reviewQueue.push({
+                word,
+                reviewDate: reviewDateStr,
+                reviewCount: EBBINGHAUS_INTERVALS.indexOf(interval) + 1
+              })
+              reviewDates.push(reviewDateStr)
+            }
+
+            // 调试：显示每个新单词的复习安排
+            if (wordIndex <= 5) {
+              logger.log(`📖 第${wordIndex}个单词 "${word.word}" 的复习安排:`)
+              logger.log(`   学习日期: ${dateString} (${DateUtils.getDayName(dateString)})`)
+              logger.log(`   复习日期: [${reviewDates.join(', ')}]`)
+              logger.log(`   间隔天数: [${EBBINGHAUS_INTERVALS.join(', ')}]天`)
+            }
+          }
+        }
+
+        // === 步骤3：处理当天的复习任务 ===
+        const todayReviews = reviewQueue.filter(item => item.reviewDate === dateString)
+        const reviewCount = Math.min(todayReviews.length, settings.maxReview)
+
+        // 按紧急程度排序：复习次数少的优先
+        todayReviews.sort((a, b) => a.reviewCount - b.reviewCount)
+
+        // 安排复习任务，并从队列中移除
+        // 使用更可靠的移除方法：直接从filter结果中取前reviewCount个
+        const todayReviewsSorted = todayReviews.sort((a, b) => a.reviewCount - b.reviewCount)
+        for (let i = 0; i < Math.min(reviewCount, todayReviewsSorted.length); i++) {
+          const reviewItem = todayReviewsSorted[i]
+          reviewWords.push(reviewItem.word)
+        }
+
+        // 处理复习任务的延期
+        if (todayReviewsSorted.length > reviewCount) {
+          const remainingReviews = todayReviewsSorted.slice(reviewCount)
+
+          // 从队列中移除已安排的复习任务
+          reviewQueue = reviewQueue.filter(item => item.reviewDate !== dateString)
+
+          // 将剩余的复习任务延期到下一天/下一个工作日
+          let nextDate = DateUtils.addDays(dateString, 1)
+
+          // 在跳过周末模式下，找到下一个工作日
+          if (settings.skipWeekends) {
+            while (DateUtils.isWeekend(nextDate)) {
+              nextDate = DateUtils.addDays(nextDate, 1)
+            }
+          }
+
+          for (const reviewItem of remainingReviews) {
             reviewQueue.push({
-              word,
-              reviewDate: reviewDateStr,
-              reviewCount: EBBINGHAUS_INTERVALS.indexOf(interval) + 1
+              word: reviewItem.word,
+              reviewDate: nextDate,
+              reviewCount: reviewItem.reviewCount
             })
-            reviewDates.push(reviewDateStr)
           }
-
-          // 调试：显示每个新单词的复习安排
-          if (wordIndex <= 5) { // 只显示前5个单词，避免日志过多
-            logger.log(`📖 第${wordIndex}个单词 "${word.word}" 的复习安排:`)
-            logger.log(`   学习日期: ${dateString}`)
-            logger.log(`   复习日期: [${reviewDates.join(', ')}]`)
-            logger.log(`   间隔天数: [${EBBINGHAUS_INTERVALS.join(', ')}]`)
-          }
+          logger.log(`⏰ 复习任务超负荷，${remainingReviews.length}个任务延期至 ${nextDate}`)
+        } else {
+          // 如果没有延期，直接从队列中移除已安排的复习任务
+          reviewQueue = reviewQueue.filter(item => item.reviewDate !== dateString)
         }
-      }
 
-      // === 步骤3：处理当天的复习任务 ===
-      const todayReviews = reviewQueue.filter(item => item.reviewDate === dateString)
-      const reviewCount = Math.min(todayReviews.length, settings.maxReview)
+  
+        // 调试：显示每天的学习任务摘要
+        const totalTasks = newWords.length + reviewWords.length
 
-      // 按紧急程度排序：复习次数少的优先（越早学习的单词越需要及时复习）
-      todayReviews.sort((a, b) => a.reviewCount - b.reviewCount)
-
-      // 安排复习任务
-      for (let i = 0; i < reviewCount; i++) {
-        reviewWords.push(todayReviews[i].word)
-        // 安全移除已安排的复习任务
-        const index = reviewQueue.indexOf(todayReviews[i])
-        if (index > -1) {
-          reviewQueue.splice(index, 1)
-        }
-      }
-
-      // 如果当天的复习任务超过了最大复习量，将剩余的复习任务延迟到下一天
-      if (todayReviews.length > settings.maxReview) {
-        const nextDate = DateUtils.addDays(dateString, 1)
-        for (let i = settings.maxReview; i < todayReviews.length; i++) {
-          reviewQueue.push({
-            ...todayReviews[i],
-            reviewDate: nextDate
+        // 只有当天的学习任务不为空时才保存
+        if (newWords.length > 0 || reviewWords.length > 0) {
+          tasks.push({
+            date: dateString,
+            newWords,
+            reviewWords
           })
+
+          logger.log(`📅 ${dateString} (${DateUtils.getDayName(dateString)}):`)
+          logger.log(`   新学单词: ${newWords.length}个 ${newWords.map(w => w.word).join(', ')}`)
+          logger.log(`   复习单词: ${reviewWords.length}个 ${reviewWords.map(w => w.word).join(', ')}`)
+          logger.log(`   总任务: ${totalTasks}个`)
+        } else {
+          logger.log(`⚭ 跳过空日期: ${dateString} (无学习任务)`)
+        }
+
+        logger.log(`   复习队列剩余: ${reviewQueue.length}个`)
+
+        // 调试：检查算法退出条件
+        if (wordIndex >= words.length && reviewQueue.length === 0) {
+          logger.log(`🎯 算法正常退出: 所有单词已学完且复习队列为空`)
+        }
+
+        actualCalendarDay++
+      }
+
+      logger.log(`✅ 跳过周末模式完成: 总共${dayIndex}个学习日，日历跨度${actualCalendarDay}天`)
+
+      // 调试：检查未完成的复习任务
+      if (reviewQueue.length > 0) {
+        logger.log(`⚠️ 警告: 仍有 ${reviewQueue.length} 个复习任务未安排`)
+        logger.log(`   未安排任务的日期范围: ${reviewQueue.map(item => item.reviewDate).slice(0, 5).join(', ')}...`)
+      }
+    } else {
+      // === 传统模式：包含所有日期 ===
+      logger.log('📆 使用传统模式：包含所有日期（周一至周日）')
+
+      // 按照原始算法逻辑，包含所有日期
+      let dayIndex = 0
+      const MAX_DAYS = 730 // 安全限制，最多730天（2年）
+
+      while (wordIndex < words.length || reviewQueue.length > 0) {
+        // 安全限制：防止无限循环
+        if (dayIndex > MAX_DAYS) {
+          logger.error('⚠️ 学习计划生成超时，强制终止')
+          break
+        }
+
+        const dateString = DateUtils.addDays(settings.startDate, dayIndex)
+        dayIndex++
+
+        const newWords: Word[] = []
+        const reviewWords: Word[] = []
+
+        logger.log(`📅 第${dayIndex}天: ${dateString} (${DateUtils.getDayName(dateString)})`)
+
+        // === 步骤1：分配新学单词 ===
+        const newWordsCount = Math.min(settings.dailyNew, words.length - wordIndex)
+        for (let i = 0; i < newWordsCount; i++) {
+          if (wordIndex < words.length) {
+            const word = words[wordIndex]
+            newWords.push(word)
+            wordIndex++
+
+            // === 步骤2：为新单词安排复习任务 ===
+            // 基于艾宾浩斯遗忘曲线的5个关键时间点（1、2、4、7、15天后）
+            const reviewDates: string[] = []
+            for (const interval of EBBINGHAUS_INTERVALS) {
+              const reviewDateStr = DateUtils.addDays(dateString, interval)
+              reviewQueue.push({
+                word,
+                reviewDate: reviewDateStr,
+                reviewCount: EBBINGHAUS_INTERVALS.indexOf(interval) + 1
+              })
+              reviewDates.push(reviewDateStr)
+            }
+
+            // 调试：显示每个新单词的复习安排
+            if (wordIndex <= 5) {
+              logger.log(`📖 第${wordIndex}个单词 "${word.word}" 的复习安排:`)
+              logger.log(`   学习日期: ${dateString} (${DateUtils.getDayName(dateString)})`)
+              logger.log(`   复习日期: [${reviewDates.join(', ')}]`)
+              logger.log(`   间隔天数: [${EBBINGHAUS_INTERVALS.join(', ')}]天`)
+            }
+          }
+        }
+
+        // === 步骤3：处理当天的复习任务 ===
+        const todayReviews = reviewQueue.filter(item => item.reviewDate === dateString)
+        const reviewCount = Math.min(todayReviews.length, settings.maxReview)
+
+        // 按紧急程度排序：复习次数少的优先
+        todayReviews.sort((a, b) => a.reviewCount - b.reviewCount)
+
+        // 安排复习任务，并从队列中移除
+        // 使用更可靠的移除方法：直接从filter结果中取前reviewCount个
+        const todayReviewsSorted = todayReviews.sort((a, b) => a.reviewCount - b.reviewCount)
+        for (let i = 0; i < Math.min(reviewCount, todayReviewsSorted.length); i++) {
+          const reviewItem = todayReviewsSorted[i]
+          reviewWords.push(reviewItem.word)
+        }
+
+        // 从队列中移除已安排的复习任务
+        const remainingReviews = todayReviewsSorted.slice(reviewCount)
+        reviewQueue = reviewQueue.filter(item => item.reviewDate !== dateString)
+
+        // 如果当天的复习任务超过了最大复习量，将剩余的复习任务延迟到下一天
+        if (todayReviews.length > settings.maxReview) {
+          const nextDate = DateUtils.addDays(dateString, 1)
+          const remainingReviews = todayReviews.slice(settings.maxReview)
+
+          for (const reviewItem of remainingReviews) {
+            reviewQueue.push({
+              word: reviewItem.word,
+              reviewDate: nextDate,
+              reviewCount: reviewItem.reviewCount
+            })
+          }
+          logger.log(`⏰ 复习任务超负荷，${remainingReviews.length}个任务延期至 ${nextDate}`)
+        }
+
+        // 调试：显示每天的学习任务摘要
+        const totalTasks = newWords.length + reviewWords.length
+
+        // 只有当天的学习任务不为空时才保存
+        if (newWords.length > 0 || reviewWords.length > 0) {
+          tasks.push({
+            date: dateString,
+            newWords,
+            reviewWords
+          })
+
+          logger.log(`📅 ${dateString} (${DateUtils.getDayName(dateString)}):`)
+          logger.log(`   新学单词: ${newWords.length}个 ${newWords.map(w => w.word).join(', ')}`)
+          logger.log(`   复习单词: ${reviewWords.length}个 ${reviewWords.map(w => w.word).join(', ')}`)
+          logger.log(`   总任务: ${totalTasks}个`)
+        } else {
+          logger.log(`⚭ 跳过空日期: ${dateString} (无学习任务)`)
+        }
+
+        logger.log(`   复习队列剩余: ${reviewQueue.length}个`)
+
+        // 调试：检查算法退出条件
+        if (wordIndex >= words.length && reviewQueue.length === 0) {
+          logger.log(`🎯 算法正常退出: 所有单词已学完且复习队列为空`)
         }
       }
 
-      // 保存当天的学习任务
-      tasks.push({
-        date: dateString,
-        newWords,
-        reviewWords
-      })
+      logger.log(`✅ 传统模式完成: 总共${dayIndex}天`)
 
-      // 调试：显示每天的学习任务摘要
-      const totalTasks = newWords.length + reviewWords.length
-      if (totalTasks > 0 || day < 10) { // 前10天或有任何任务的日期都显示
-        logger.log(`📅 第${day + 1}天 (${dateString}):`)
-        logger.log(`   新学单词: ${newWords.length}个 ${newWords.map(w => w.word).join(', ')}`)
-        logger.log(`   复习单词: ${reviewWords.length}个 ${reviewWords.map(w => w.word).join(', ')}`)
-        logger.log(`   总任务: ${totalTasks}个`)
-        logger.log(`   复习队列剩余: ${reviewQueue.length}个`)
-      }
-
-      // 优化：如果所有单词都已学习完成且没有待复习任务，可以提前结束
-      if (wordIndex >= words.length && reviewQueue.length === 0) {
-        logger.log(`✅ 学习计划完成: 总共${day + 1}天`)
-        break
+      // 调试：检查未完成的复习任务
+      if (reviewQueue.length > 0) {
+        logger.log(`⚠️ 警告: 仍有 ${reviewQueue.length} 个复习任务未安排`)
+        logger.log(`   未安排任务的日期范围: ${reviewQueue.map(item => item.reviewDate).slice(0, 5).join(', ')}...`)
       }
     }
 
@@ -146,7 +333,19 @@ export function useEbbinghaus() {
     const totalStudyTasks = tasks.reduce((sum, task) => sum + task.newWords.length + task.reviewWords.length, 0)
 
     logger.log('📊 学习计划生成完成统计:')
-    logger.log(`   总天数: ${totalDays}天`)
+    if (settings.skipWeekends && tasks.length > 0) {
+      const startDate = tasks[0].date
+      const endDate = tasks[tasks.length - 1].date
+      const calendarDays = DateUtils.daysBetween(startDate, endDate) + 1
+
+      logger.log(`   学习模式: 跳过周末`)
+      logger.log(`   学习天数: ${totalDays}天 (工作日)`)
+      logger.log(`   日历跨度: ${calendarDays}天 (包含周末)`)
+      logger.log(`   跳过的周末: ${calendarDays - totalDays}天`)
+    } else {
+      logger.log(`   学习模式: 包含所有日期`)
+      logger.log(`   总天数: ${totalDays}天`)
+    }
     logger.log(`   总单词数: ${totalNewWords}个`)
     logger.log(`   总复习任务: ${totalReviewTasks}个`)
     logger.log(`   总学习任务: ${totalStudyTasks}个`)

@@ -74,6 +74,35 @@
             <span class="form-tip">选择今天或未来的日期作为学习计划的开始时间</span>
           </div>
         </el-form-item>
+
+        <el-form-item label="跳过周末">
+          <div class="form-input-group">
+            <el-switch
+              v-model="settings.skipWeekends"
+              :active-value="true"
+              :inactive-value="false"
+              class="form-switch"
+            />
+            <div class="weekend-info">
+              <el-alert
+                v-if="settings.skipWeekends"
+                title="开启跳过周末后，学习计划只会在周一至周五安排任务，周六和周日将自动跳过。这会延长整个学习计划的日历时间，但保持学习天数不变。"
+                type="info"
+                :closable="false"
+                show-icon
+                class="weekend-alert"
+              />
+              <el-alert
+                v-else
+                title="包含所有日期的模式会在每一天（包括周末）都安排学习任务，适合需要高强度学习的情况。"
+                type="info"
+                :closable="false"
+                show-icon
+                class="weekend-alert"
+              />
+            </div>
+          </div>
+        </el-form-item>
       </el-form>
 
       <!-- 预计统计信息 -->
@@ -262,9 +291,29 @@ const statisticsText = computed(() => {
 
   const totalDays = settings.value.period
   const totalNewWords = Math.min(words.value.length, settings.value.dailyNew * totalDays)
-  const estimatedDays = Math.ceil(words.value.length / settings.value.dailyNew)
+  const estimatedStudyDays = Math.ceil(words.value.length / settings.value.dailyNew)
 
-  return `预计需要 ${estimatedDays} 天完成所有单词学习，总计安排约 ${totalNewWords * 6} 次学习任务（含复习）`
+  if (settings.value.skipWeekends) {
+    // 跳过周末模式：计算实际的日历天数
+    let calendarDays = 0
+    let studyDaysCount = 0
+    let currentDate = DateUtils.parseDate(settings.value.startDate)
+
+    while (studyDaysCount < estimatedStudyDays) {
+      const dateString = DateUtils.formatDate(currentDate)
+      if (!DateUtils.isWeekend(dateString)) {
+        studyDaysCount++
+      }
+      calendarDays++
+      currentDate.setDate(currentDate.getDate() + 1)
+    }
+
+    const skippedWeekends = calendarDays - estimatedStudyDays
+    return `预计需要 ${estimatedStudyDays} 个学习日（工作日），日历时间跨度 ${calendarDays} 天（跳过 ${skippedWeekends} 个周末），总计安排约 ${totalNewWords * 6} 次学习任务（含复习）`
+  } else {
+    // 传统模式：包含所有日期
+    return `预计需要 ${estimatedStudyDays} 天完成所有单词学习，总计安排约 ${totalNewWords * 6} 次学习任务（含复习）`
+  }
 })
 
 
@@ -406,7 +455,6 @@ const goBack = () => {
 }
 
 .settings-form {
-  padding: 18px 20px;
 }
 
 .settings-form .el-form-item {
@@ -578,5 +626,66 @@ const goBack = () => {
 :deep(.el-date-picker .el-input__wrapper:hover) {
   border-color: var(--el-color-primary);
   box-shadow: 0 0 0 2px var(--el-color-primary-light-8);
+}
+
+/* 周末跳过开关样式 */
+:deep(.el-form-item--default .el-form-item__content) {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.form-switch {
+  margin: 0;
+  align-self: flex-start;
+}
+
+.weekend-info {
+  width: 100%;
+  margin: 0;
+}
+
+.weekend-alert {
+  margin-bottom: 0;
+  width: 100%;
+}
+
+:deep(.weekend-alert .el-alert__title) {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--el-color-info-dark-2);
+}
+
+:deep(.el-switch__label) {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--el-text-color-primary);
+}
+
+:deep(.el-switch.is-checked .el-switch__label) {
+  color: var(--el-color-primary);
+}
+
+/* 活跃状态下的开关样式 */
+:deep(.el-switch.is-checked) {
+  transform: scale(1.02);
+  transition: transform 0.2s ease;
+}
+
+/* 信息提示动画效果 */
+.weekend-alert {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

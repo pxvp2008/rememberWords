@@ -13,7 +13,8 @@ const DEFAULT_SETTINGS: StudySettings = {
   period: 30,
   dailyNew: 5,
   maxReview: 10,
-  startDate: DateUtils.today()
+  startDate: DateUtils.today(),
+  skipWeekends: false // 默认不跳过周末，保持原有行为
 }
 
 export function useStorage() {
