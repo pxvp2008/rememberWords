@@ -1,62 +1,60 @@
 <template>
   <div id="app">
-    <el-container class="app-container">
-      <!-- 头部 -->
-      <el-header class="app-header">
-        <div class="header-content">
-          <div class="logo">
-            <el-icon size="24"><Notebook /></el-icon>
-            <h1>艾宾浩斯学习计划工具</h1>
-          </div>
-          <div class="header-actions">
-            <el-button @click="clearAllData" type="danger" size="small" plain>
-              清除所有数据
-            </el-button>
-          </div>
+    <!-- 固定在顶部的浮动标题栏 -->
+    <div class="floating-header">
+      <div class="header-content">
+        <div class="logo">
+          <img src="./assets/logo_2.png" alt="Logo" class="logo-img" />
+          <h1>艾宾浩斯学习计划工具</h1>
         </div>
-      </el-header>
-
-      <!-- 主体内容 -->
-      <el-main class="app-main">
-        <!-- 步骤指示器 -->
-        <el-steps :active="currentStep" finish-status="success" class="progress-steps">
-          <el-step title="数据导入" description="导入Excel单词表" />
-          <el-step title="计划设置" description="配置学习计划" />
-          <el-step title="查看计划" description="预览和导出计划" />
-        </el-steps>
-
-        <!-- 步骤内容 -->
-        <div class="step-content">
-          <!-- 数据导入 -->
-          <DataImport
-            v-if="currentStep === 0"
-            @next="nextStep"
-            :key="`data-import-${words.length}`"
-          />
-
-          <!-- 参数设置 -->
-          <ParameterSettings
-            v-else-if="currentStep === 1"
-            @back="prevStep"
-            @next="generateAndShowPlan"
-            :key="`settings-${currentStep}`"
-          />
-
-          <!-- 计划查看 -->
-          <PlanViewer
-            v-else-if="currentStep === 2"
-            @back="prevStep"
-            @regenerate="regeneratePlan"
-            :key="`plan-viewer-${currentStep}`"
-          />
+        <div class="header-actions">
+          <el-button @click="clearAllData" type="danger" size="small" plain>
+            清除所有数据
+          </el-button>
         </div>
-      </el-main>
+      </div>
+    </div>
 
-      <!-- 页脚 -->
-      <el-footer class="app-footer">
-        <p>艾宾浩斯学习计划工具 - 基于遗忘曲线的科学学习方案</p>
-      </el-footer>
-    </el-container>
+    <!-- 固定在页面底部的副标题 -->
+    <div class="floating-footer">
+      <p>让记忆变得简单，让学习变得高效</p>
+    </div>
+
+    <!-- 主内容区域 -->
+    <div class="main-content">
+      <!-- 步骤指示器 -->
+      <el-steps :active="currentStep" finish-status="success" class="progress-steps">
+        <el-step title="数据导入" description="导入Excel单词表" />
+        <el-step title="计划设置" description="配置学习计划" />
+        <el-step title="查看计划" description="预览和导出计划" />
+      </el-steps>
+
+      <!-- 步骤内容 -->
+      <div class="step-content">
+        <!-- 数据导入 -->
+        <DataImport
+          v-if="currentStep === 0"
+          @next="nextStep"
+          :key="`data-import-${words.length}`"
+        />
+
+        <!-- 参数设置 -->
+        <ParameterSettings
+          v-else-if="currentStep === 1"
+          @back="prevStep"
+          @next="generateAndShowPlan"
+          :key="`settings-${currentStep}`"
+        />
+
+        <!-- 计划查看 -->
+        <PlanViewer
+          v-else-if="currentStep === 2"
+          @back="prevStep"
+          @regenerate="regeneratePlan"
+          :key="`plan-viewer-${currentStep}`"
+        />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -136,12 +134,13 @@ const clearAllData = async () => {
 </script>
 
 <style scoped>
-.app-container {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.app-header {
+/* 浮动标题栏样式 */
+.floating-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
@@ -154,14 +153,19 @@ const clearAllData = async () => {
   align-items: center;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 20px;
-  height: 100%;
+  padding: 4px 20px;
 }
 
 .logo {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.logo-img {
+  height: 54px; /* 64px - 10px = 54px */
+  width: auto;
+  object-fit: contain;
 }
 
 .logo h1 {
@@ -173,17 +177,44 @@ const clearAllData = async () => {
   background-clip: text;
 }
 
-.app-main {
+/* 浮动底部副标题样式 */
+.floating-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 999;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(103, 126, 234, 0.1);
+  text-align: center;
+  padding: 12px 20px;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.floating-footer p {
+  margin: 0;
+  color: var(--el-text-color-regular);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* 主内容区域，需要为浮动标题和底部留出空间 */
+.main-content {
+  margin-top: 60px; /* 浮动标题栏的高度 (54px logo + 8px padding) + 10px额外间距 */
+  margin-bottom: 60px; /* 为底部浮动副标题留出空间 */
   padding: 20px;
   max-width: 1200px;
-  margin: 0 auto;
+  margin-left: auto;
+  margin-right: auto;
+  min-height: calc(100vh - 120px);
 }
 
 .progress-steps {
   background: rgba(255, 255, 255, 0.95);
   padding: 20px;
   border-radius: 12px;
-  margin-bottom: 30px;
+  margin-bottom: 20px; /* 25px - 5px = 20px */
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
@@ -211,14 +242,24 @@ const clearAllData = async () => {
 /* 响应式设计 */
 @media (max-width: 768px) {
   .header-content {
-    padding: 0 16px;
+    padding: 12px 16px;
   }
 
   .logo h1 {
     font-size: 18px;
   }
 
-  .app-main {
+  .floating-footer {
+    padding: 8px 16px;
+  }
+
+  .floating-footer p {
+    font-size: 12px;
+  }
+
+  .main-content {
+    margin-top: 70px; /* 移动端减少顶部间距 */
+    margin-bottom: 50px; /* 移动端减少底部间距 */
     padding: 16px;
   }
 

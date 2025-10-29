@@ -37,7 +37,11 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const config = loadConfig()
 
+  // 对于Electron构建，使用相对路径
+  const base = mode === 'production' ? './' : '/'
+
   return {
+    base,
     plugins: [vue()],
     resolve: {
       alias: {

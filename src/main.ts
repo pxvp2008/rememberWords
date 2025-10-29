@@ -16,4 +16,11 @@ app.use(ElementPlus, {
   locale: zhCn,
 })
 
+// 在Electron环境中禁用默认的右键菜单
+if (typeof window !== 'undefined' && window.electronAPI) {
+  document.addEventListener('contextmenu', (e) => {
+    e.preventDefault()
+  })
+}
+
 app.mount('#app')

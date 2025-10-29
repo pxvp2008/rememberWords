@@ -7,8 +7,6 @@
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen?style=flat-square)](https://github.com/pxvp2008/rememberWords/actions)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](CONTRIBUTING.md)
-
 [![Vue.js](https://img.shields.io/badge/Vue.js-3.4+-4FC08D?style=flat-square&logo=vue.js&logoColor=white)](https://vuejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Element Plus](https://img.shields.io/badge/Element%20Plus-2.4+-409EFF?style=flat-square&logo=element&logoColor=white)](https://element-plus.org/)
@@ -21,6 +19,7 @@
 🧠 **科学算法** - 基于艾宾浩斯遗忘曲线的 1、2、4、7、15 天复习间隔
 📊 **数据管理** - 支持 Excel 导入导出，智能识别数据格式
 🎨 **用户友好** - 三步操作流程，可视化统计图表，响应式设计
+🖥️ **桌面应用** - 支持 macOS 原生桌面应用，离线使用
 🔒 **安全可靠** - 本地存储，输入验证，XSS 防护，类型安全
 
 ---
@@ -32,6 +31,7 @@
 - [技术栈](#️-技术栈)
 - [项目结构](#-项目结构)
 - [使用指南](#-使用指南)
+- [桌面应用](#-桌面应用)
 
 ## 🚀 快速开始
 
@@ -103,6 +103,10 @@ graph TD
 - **[ECharts](https://echarts.apache.org/)** - 数据可视化图表库
 - **[SheetJS](https://sheetjs.com/)** - JavaScript电子表格库
 
+### 桌面应用
+- **[Electron](https://www.electron.js.org/)** - 跨平台桌面应用框架
+- **[electron-builder](https://www.electron.build/)** - Electron 应用打包工具
+
 ## 📁 项目结构
 
 ```
@@ -115,6 +119,16 @@ rememberWords/
 │   └── 🛠️ DEVELOPER.md       # 开发者文档
 ├── 📁 public/                # 静态资源
 │   └── 🎨 favicon.ico
+├── 📁 assets/                # 资源文件
+│   ├── 📁 icons/             # 应用图标
+│   │   ├── 🖼️ icon.icns       # macOS 应用图标
+│   │   ├── 🎨 icon.png        # PNG 格式图标
+│   │   └── 📁 icon.iconset     # 图标源文件
+│   ├── 📁 logos/             # Logo 文件
+│   │   ├── 🖼️ logo_1.png      # Logo 源文件（不透明背景）
+│   │   └── 🖼️ logo_2.png      # Logo 源文件（透明背景）
+│   └── 📁 electron/          # Electron 配置
+│       └── ⚙️ entitlements.mac.plist
 ├── 📁 src/                   # 源代码
 │   ├── 📁 components/        # Vue组件
 │   │   ├── 📤 DataImport.vue
@@ -131,6 +145,13 @@ rememberWords/
 │   │   └── 🔒 sanitize.ts
 │   ├── 🖼️ App.vue            # 主应用组件
 │   └── 🚀 main.ts            # 应用入口
+├── 📁 electron/              # Electron 主进程
+│   ├── ⚙️ main.ts             # 主进程入口
+│   ├── 🛡️ preload.ts         # 预加载脚本
+│   └── ⚙️ tsconfig.json      # Electron TypeScript 配置
+├── 📁 release/               # 构建产物
+│   ├── 💿 *.dmg              # macOS 安装包
+│   └── 📦 *.app              # macOS 应用程序
 ├── 📄 package.json           # 项目配置
 ├── ⚙️ tsconfig.json          # TypeScript配置
 ├── ⚡ vite.config.ts         # Vite配置
@@ -203,17 +224,45 @@ npm run build:check
 
 更多详细信息请查看 [📖 开发者文档](docs/DEVELOPER.md)。
 
-## 🤝 贡献指南
+## 🖥️ 桌面应用
 
-我们欢迎所有形式的贡献！请查看 [🤝 贡献指南](CONTRIBUTING.md) 了解如何参与项目开发。
+本项目支持构建原生 macOS 桌面应用，提供更好的用户体验和离线使用能力。
 
-### 贡献方式
+### 构建桌面应用
 
-- 🐛 报告问题
-- 💡 提出新功能建议
-- 🔧 提交代码修复
-- 📝 完善文档
-- ⭐ 给项目点星
+```bash
+# 安装依赖（包含 Electron 相关依赖）
+npm install
+
+# 开发模式（同时运行 Web 开发服务器和 Electron）
+npm run electron:dev
+
+# 构建桌面应用
+npm run electron:build
+
+# 仅打包应用（不重新构建）
+npm run electron:pack
+```
+
+### 应用特性
+
+- ✅ **原生体验** - macOS 原生窗口、菜单、图标
+- ✅ **离线使用** - 无需网络连接即可完整使用
+- ✅ **数据安全** - 本地存储，数据不上传
+- ✅ **圆角图标** - 符合 macOS 设计规范的应用图标
+- ✅ **自动更新** - 支持应用自动更新机制（可配置）
+
+### 构建产物
+
+构建完成后，在 `release/` 目录中会生成：
+
+- `艾宾浩斯学习计划工具-1.0.0.dmg` - macOS 安装包
+- `艾宾浩斯学习计划工具.app` - macOS 应用程序
+
+### 系统要求
+
+- macOS 10.15+ (Catalina 或更高版本)
+- Intel x64 架构处理器
 
 ## 📄 许可证
 

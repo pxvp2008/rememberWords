@@ -22,12 +22,12 @@ export const sanitizeInput = (input: string, maxLength: number = MAX_WORD_LENGTH
   // 移除 HTML 标签
   let cleaned = input.replace(/<[^>]*>/g, '')
 
-  // 移除潜在的 JavaScript 代码
+  // 移除潜在的 JavaScript 代码和危险字符
   cleaned = cleaned.replace(/javascript:/gi, '')
   cleaned = cleaned.replace(/on\w+\s*=/gi, '')
 
-  // 移除特殊字符，但保留基本的标点符号
-  cleaned = cleaned.replace(/[<>{}[\]\\`'"]/g, '')
+  // 只移除最危险的特殊字符，保留更多有用的符号
+  cleaned = cleaned.replace(/[<>{}]/g, '')
 
   // 去除首尾空格
   cleaned = cleaned.trim()
@@ -52,10 +52,10 @@ export const validateWord = (word: string): boolean => {
 
   const cleaned = sanitizeInput(word, MAX_WORD_LENGTH)
 
-  // 单词应该只包含字母、连字符和撇号
-  const wordPattern = /^[a-zA-Z\u4e00-\u9fa5\-']+$/
-
-  return wordPattern.test(cleaned) && cleaned.length >= 1
+  // 更宽松的单词验证：允许字母、数字、中文和常见符号
+  // 移除了过于严格的正则表达式，只要有内容就认为是有效的
+  // 因为有些单词可能包含数字、点号、斜杠等字符
+  return cleaned.length >= 1 && cleaned.length <= MAX_WORD_LENGTH
 }
 
 /**
@@ -93,9 +93,17 @@ export const validateExcelRow = (row: Record<string, unknown>): {
     const keys = Object.keys(row)
     for (const key of keys) {
       const keyLower = String(key).toLowerCase().trim()
-      if (keyLower.includes('单词') || keyLower.includes('word') || keyLower.includes('词汇')) {
+      // 扩展单词列的匹配关键词
+      if (keyLower.includes('单词') || keyLower.includes('word') || keyLower.includes('词汇') ||
+          keyLower.includes('english') || keyLower.includes('eng') || keyLower === 'a' ||
+          keyLower === 'word' || keyLower === 'vocabulary') {
         wordColumn = key
-      } else if (keyLower.includes('释义') || keyLower.includes('meaning') || keyLower.includes('翻译') || keyLower.includes('解释')) {
+      }
+      // 扩展释义列的匹配关键词
+      else if (keyLower.includes('释义') || keyLower.includes('meaning') || keyLower.includes('翻译') ||
+               keyLower.includes('解释') || keyLower.includes('中文') || keyLower.includes('chinese') ||
+               keyLower.includes('cn') || keyLower === 'b' || keyLower === 'meaning' ||
+               keyLower.includes('definition')) {
         meaningColumn = key
       }
     }
@@ -114,17 +122,19 @@ export const validateExcelRow = (row: Record<string, unknown>): {
     const word = sanitizeInput(rawWord, MAX_WORD_LENGTH)
     const meaning = sanitizeInput(rawMeaning, MAX_MEANING_LENGTH)
 
+    // 更宽松的验证：只要有内容就接受
     if (!word || !meaning) {
       return { isValid: false, error: '单词或释义不能为空' }
     }
 
-    if (!validateWord(word)) {
-      return { isValid: false, error: '单词格式无效' }
-    }
+    // 移除过于严格的验证，只要有内容就认为是有效的
+    // if (!validateWord(word)) {
+    //   return { isValid: false, error: '单词格式无效' }
+    // }
 
-    if (!validateMeaning(meaning)) {
-      return { isValid: false, error: '释义格式无效' }
-    }
+    // if (!validateMeaning(meaning)) {
+    //   return { isValid: false, error: '释义格式无效' }
+    // }
 
     return { isValid: true, word, meaning }
 

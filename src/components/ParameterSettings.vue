@@ -133,10 +133,11 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { Setting, InfoFilled } from '@element-plus/icons-vue'
+import { Setting, InfoFilled, Edit } from '@element-plus/icons-vue'
 import { useStorage } from '@/composables/useStorage'
 import { useEbbinghaus } from '@/composables/useEbbinghaus'
 import type { StudySettings } from '@/types'
+import { EBBINGHAUS_INTERVALS } from '@/types'
 
 const emit = defineEmits<{
   back: []
@@ -147,6 +148,7 @@ const { words, settings } = useStorage()
 const { generateStudyPlan, isGenerating } = useEbbinghaus()
 
 const formRef = ref<FormInstance>()
+
 
 // 表单验证规则
 const rules: FormRules<StudySettings> = {
@@ -186,6 +188,8 @@ const disabledDate = (time: Date) => {
   return time.getTime() < Date.now() - 24 * 60 * 60 * 1000
 }
 
+
+
 // 统计信息
 const statisticsText = computed(() => {
   if (words.value.length === 0) return ''
@@ -196,6 +200,7 @@ const statisticsText = computed(() => {
 
   return `预计需要 ${estimatedDays} 天完成所有单词学习，总计安排约 ${totalNewWords * 6} 次学习任务（含复习）`
 })
+
 
 // 监听设置变化，自动验证
 watch(() => settings.value, () => {
@@ -367,6 +372,38 @@ const goBack = () => {
 .form-tip:hover {
   background: var(--el-color-info-light-8);
   transform: translateX(1px);
+}
+
+.auto-tag {
+  margin-left: 8px;
+  font-size: 11px;
+  height: 20px;
+  line-height: 18px;
+  border-radius: 10px;
+  background: var(--el-color-info-light-8);
+  color: var(--el-color-info);
+  border: 1px solid var(--el-color-info-light-5);
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.auto-tag.editable-tag {
+  cursor: default;
+  background: var(--el-color-success-light-8);
+  color: var(--el-color-success);
+  border: 1px solid var(--el-color-success-light-5);
+}
+
+.auto-tag.editable-tag:hover {
+  background: var(--el-color-success-light-7);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.edit-icon {
+  margin-left: 4px;
+  opacity: 0.8;
 }
 
 .statistics-alert {

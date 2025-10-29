@@ -277,6 +277,7 @@ const drawLoadChart = () => {
     title: {
       text: '每日学习负荷',
       left: 'center',
+      top: 10,
       textStyle: {
         fontSize: 16,
         fontWeight: 'normal'
@@ -294,13 +295,14 @@ const drawLoadChart = () => {
     },
     legend: {
       data: ['新学单词', '复习单词', '总计'],
-      top: 30
+      top: 35,
+      left: 'center'
     },
     grid: {
       left: '3%',
       right: '4%',
       bottom: '3%',
-      top: '15%',
+      top: '30%',
       containLabel: true
     },
     xAxis: {
