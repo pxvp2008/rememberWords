@@ -19,7 +19,7 @@
 🧠 **科学算法** - 基于艾宾浩斯遗忘曲线的 1、2、4、7、15 天复习间隔
 📊 **数据管理** - 支持 Excel 导入导出，智能识别数据格式
 🎨 **用户友好** - 三步操作流程，可视化统计图表，响应式设计
-🖥️ **桌面应用** - 支持 macOS 原生桌面应用，离线使用
+🖥️ **桌面应用** - 支持 macOS 和 Windows 便携版桌面应用，离线使用
 🔒 **安全可靠** - 本地存储，输入验证，XSS 防护，类型安全
 
 ---
@@ -151,7 +151,8 @@ rememberWords/
 │   └── ⚙️ tsconfig.json      # Electron TypeScript 配置
 ├── 📁 release/               # 构建产物
 │   ├── 💿 *.dmg              # macOS 安装包
-│   └── 📦 *.app              # macOS 应用程序
+│   ├── 📦 *.app              # macOS 应用程序
+│   └── 💾 *.exe              # Windows 便携版可执行文件
 ├── 📄 package.json           # 项目配置
 ├── ⚙️ tsconfig.json          # TypeScript配置
 ├── ⚡ vite.config.ts         # Vite配置
@@ -226,7 +227,7 @@ npm run build:check
 
 ## 🖥️ 桌面应用
 
-本项目支持构建原生 macOS 桌面应用，提供更好的用户体验和离线使用能力。
+本项目支持构建跨平台桌面应用，包括 macOS 和 Windows 便携版，提供更好的用户体验和离线使用能力。
 
 ### 构建桌面应用
 
@@ -237,32 +238,59 @@ npm install
 # 开发模式（同时运行 Web 开发服务器和 Electron）
 npm run electron:dev
 
-# 构建桌面应用
+# 构建 macOS 应用
+npm run electron:build:mac
+
+# 构建 Windows 便携版
+npm run electron:build:win
+
+# 通用构建（包含所有平台）
 npm run electron:build
 
 # 仅打包应用（不重新构建）
 npm run electron:pack
 ```
 
+### 图标管理
+
+```bash
+# 生成应用图标（从 logo_1_y.png 生成）
+npm run icon:generate
+
+# 复制生成的图标到正确位置
+npm run icon:copy
+```
+
 ### 应用特性
 
-- ✅ **原生体验** - macOS 原生窗口、菜单、图标
+- ✅ **跨平台支持** - macOS 和 Windows 原生桌面应用
+- ✅ **便携版本** - Windows 版本无需安装，解压即用
 - ✅ **离线使用** - 无需网络连接即可完整使用
 - ✅ **数据安全** - 本地存储，数据不上传
-- ✅ **圆角图标** - 符合 macOS 设计规范的应用图标
+- ✅ **原生图标** - 使用 logo_1_y.png 作为应用图标
 - ✅ **自动更新** - 支持应用自动更新机制（可配置）
 
 ### 构建产物
 
 构建完成后，在 `release/` 目录中会生成：
 
-- `艾宾浩斯学习计划工具-1.0.0.dmg` - macOS 安装包
-- `艾宾浩斯学习计划工具.app` - macOS 应用程序
-
 ### 系统要求
 
+**macOS：**
 - macOS 10.15+ (Catalina 或更高版本)
 - Intel x64 架构处理器
+
+**Windows：**
+- Windows 10/11 (x64)
+- 至少 4GB 内存
+- 100MB 可用磁盘空间
+
+### Windows 便携版说明
+
+- **无需安装**：直接双击 `.exe` 文件即可运行
+- **数据存储**：所有数据保存在程序目录的 `data` 文件夹中
+- **绿色软件**：不会写入注册表，卸载时直接删除文件夹即可
+- **移动友好**：可将程序放在U盘中，在不同电脑上使用
 
 ## 📄 许可证
 

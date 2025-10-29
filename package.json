@@ -1,6 +1,6 @@
 {
   "name": "rememberwords",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "基于艾宾浩斯遗忘曲线的智能学习计划工具",
   "main": "dist-electron/main.js",
   "homepage": "https://github.com/pxvp2008/rememberWords",
@@ -28,6 +28,10 @@
     "electron:build:dev": "node scripts/update-build-config.js && npm run build:dev && tsc -p electron/tsconfig.json && electron-builder --config.directories.output=release-dev",
     "electron:pack": "node scripts/update-build-config.js && npm run build && tsc -p electron/tsconfig.json && electron-builder --dir",
     "electron:dist": "npm run electron:build && electron-builder --publish=never",
+    "electron:build:win": "node scripts/build-windows.cjs",
+    "electron:build:mac": "node scripts/update-build-config.js && npm run build && tsc -p electron/tsconfig.json && electron-builder --mac --publish=never",
+    "icon:generate": "npx electron-icon-builder --input=assets/logos/logo_1_y.png --output=assets/icons",
+    "icon:copy": "cp assets/icons/icons/win/icon.ico assets/icons/icon.ico && cp assets/icons/icons/mac/icon.icns assets/icons/icon.icns",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
@@ -48,6 +52,7 @@
     "cross-env": "^10.1.0",
     "electron": "^39.0.0",
     "electron-builder": "^26.0.12",
+    "electron-icon-builder": "^2.0.1",
     "eslint": "^8.57.0",
     "eslint-plugin-vue": "^9.17.0",
     "prettier": "^3.1.1",
@@ -88,8 +93,25 @@
       "entitlements": "assets/electron/entitlements.mac.plist",
       "entitlementsInherit": "assets/electron/entitlements.mac.plist"
     },
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icons/icon.ico",
+      "executableName": "RememberWords",
+      "requestedExecutionLevel": "asInvoker",
+      "verifyUpdateCodeSignature": false
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.${ext}"
+    },
     "dmg": {
-      "title": "RememberWords 1.0.1",
+      "title": "RememberWords 1.0.2",
       "icon": "assets/icons/icon.icns",
       "iconSize": 100,
       "contents": [

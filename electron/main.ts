@@ -1,6 +1,6 @@
-import { app, BrowserWindow, Menu, shell, ipcMain, dialog } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron'
+import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
-import { readFileSync, existsSync } from 'fs'
 import { fileURLToPath } from 'url'
 
 // ES模块中的__dirname替代方案
@@ -61,7 +61,10 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: 'default', // 使用默认标题栏以避免重叠问题
-    icon: join(__dirname, '../assets/icon.png'), // 应用图标
+    title: config.app?.shortName || config.app?.name || '艾宾浩斯学习计划工具', // 设置窗口标题
+    icon: process.platform === 'win32'
+      ? join(__dirname, '../assets/icons/icon.ico')
+      : join(__dirname, '../assets/icon.png'), // 根据平台选择图标
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -128,12 +131,20 @@ function createWindow(): void {
 // 这段程序将会在Electron结束初始化和创建浏览器窗口的时候调用
 // 部分API在ready事件触发后才能使用
 app.whenReady().then(() => {
-  // 设置应用ID (macOS)
-  app.setAppUserModelId('com.ebbinghaus.app')
+  // 设置应用ID (Windows/macOS)
+  app.setAppUserModelId('com.pxvp.rememberwords.app')
 
-  // 设置应用名称
-  if (process.platform === 'darwin') {
-    app.setName(config.app?.name || '艾宾浩斯学习计划工具')
+  // 设置应用名称 (Windows和macOS)
+  const appName = config.app?.shortName || config.app?.name || '艾宾浩斯学习计划工具'
+  app.setName(appName)
+
+  // Windows下设置用户模型ID和显示名称
+  if (process.platform === 'win32') {
+    app.setAppUserModelId('com.pxvp.rememberwords.app')
+    // 设置任务栏显示的应用名称
+    if (mainWindow) {
+      app.setAppUserModelId('com.pxvp.rememberwords.app')
+    }
   }
 
   createWindow()
