@@ -137,7 +137,8 @@ import { Setting, InfoFilled, Edit } from '@element-plus/icons-vue'
 import { useStorage } from '@/composables/useStorage'
 import { useEbbinghaus } from '@/composables/useEbbinghaus'
 import type { StudySettings } from '@/types'
-import { EBBINGHAUS_INTERVALS } from '@/types'
+import { EBBINGHAUS_INTERVALS, DateUtils } from '@/types'
+import { handleValidationError, handleAlgorithmError } from '@/utils/errorHandler'
 
 const emit = defineEmits<{
   back: []
@@ -151,35 +152,100 @@ const formRef = ref<FormInstance>()
 
 
 // 表单验证规则
+const validateNewVsReview = (rule: any, value: number, callback: Function, isDailyNew: boolean) => {
+  try {
+    const dailyNew = settings.value.dailyNew
+    const maxReview = settings.value.maxReview
+
+    if (!dailyNew || !maxReview) {
+      callback()
+      return
+    }
+
+    if (isDailyNew && value > maxReview) {
+      callback(new Error('每日新学单词数不应超过每日最大复习数'))
+    } else if (!isDailyNew && value < dailyNew) {
+      callback(new Error('每日最大复习数不应少于每日新学单词数'))
+    } else {
+      callback()
+    }
+  } catch (error) {
+    handleValidationError('表单验证失败', { rule, value, error })
+    callback()
+  }
+}
+
 const rules: FormRules<StudySettings> = {
   period: [
     { required: true, message: '请输入学习周期', trigger: 'blur' },
-    { type: 'number', min: 7, max: 365, message: '学习周期应在7-365天之间', trigger: 'blur' }
+    {
+      type: 'number',
+      min: 7,
+      max: 365,
+      message: '学习周期应在7-365天之间',
+      trigger: 'blur'
+    }
   ],
   dailyNew: [
     { required: true, message: '请输入每日新学单词数', trigger: 'blur' },
-    { type: 'number', min: 1, max: 100, message: '每日新学单词数应在1-100个之间', trigger: 'blur' },
-    { validator: (rule, value, callback) => {
-      if (value && settings.value.maxReview && value > settings.value.maxReview) {
-        callback(new Error('每日新学单词数不应超过每日最大复习数'))
-      } else {
-        callback()
-      }
-    }, trigger: 'blur' }
+    {
+      type: 'number',
+      min: 1,
+      max: 100,
+      message: '每日新学单词数应在1-100个之间',
+      trigger: 'blur'
+    },
+    {
+      validator: (rule, value, callback) => validateNewVsReview(rule, value, callback, true),
+      trigger: 'blur'
+    }
   ],
   maxReview: [
     { required: true, message: '请输入每日最大复习数', trigger: 'blur' },
-    { type: 'number', min: 1, max: 200, message: '每日最大复习数应在1-200个之间', trigger: 'blur' },
-    { validator: (rule, value, callback) => {
-      if (value && settings.value.dailyNew && value < settings.value.dailyNew) {
-        callback(new Error('每日最大复习数不应少于每日新学单词数'))
-      } else {
-        callback()
-      }
-    }, trigger: 'blur' }
+    {
+      type: 'number',
+      min: 1,
+      max: 200,
+      message: '每日最大复习数应在1-200个之间',
+      trigger: 'blur'
+    },
+    {
+      validator: (rule, value, callback) => validateNewVsReview(rule, value, callback, false),
+      trigger: 'blur'
+    }
   ],
   startDate: [
-    { required: true, message: '请选择起始日期', trigger: 'change' }
+    { required: true, message: '请选择起始日期', trigger: 'change' },
+    {
+      validator: (rule, value, callback) => {
+        try {
+          if (!value) {
+            callback(new Error('请选择起始日期'))
+            return
+          }
+
+          if (!DateUtils.isValidDateString(value)) {
+            callback(new Error('请选择有效的日期'))
+            return
+          }
+
+          const selectedDate = DateUtils.parseDate(value)
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+
+          if (selectedDate < today) {
+            callback(new Error('起始日期不能是过去的日期'))
+            return
+          }
+
+          callback()
+        } catch (error) {
+          handleValidationError('日期验证失败', { value, error })
+          callback(new Error('日期格式不正确'))
+        }
+      },
+      trigger: 'change'
+    }
   ]
 }
 
@@ -209,17 +275,22 @@ watch(() => settings.value, () => {
 
 // 生成学习计划
 const generatePlan = async () => {
-  if (!formRef.value) return
+  if (!formRef.value) {
+    handleValidationError('表单引用不存在')
+    return
+  }
 
   try {
+    // 验证表单
     await formRef.value.validate()
 
+    // 检查是否有单词数据
     if (words.value.length === 0) {
       ElMessage.warning('请先导入单词数据')
       return
     }
 
-    // 检查参数合理性
+    // 验证学习容量
     const totalCapacity = settings.value.dailyNew * settings.value.period
     if (totalCapacity < words.value.length) {
       try {
@@ -236,48 +307,68 @@ const generatePlan = async () => {
         // 自动调整参数
         const suggestedDays = Math.ceil(words.value.length / settings.value.dailyNew)
         settings.value.period = Math.min(suggestedDays, 365)
+
+        ElMessage.info(`已自动调整学习周期为 ${settings.value.period} 天`)
       } catch {
-        // 用户选择继续生成
+        // 用户选择继续生成，不进行调整
       }
     }
 
+    // 验证日期有效性
+    if (!DateUtils.isValidDateString(settings.value.startDate)) {
+      handleValidationError('起始日期格式无效')
+      return
+    }
+
+    // 生成学习计划
     await generateStudyPlan(words.value, settings.value)
     ElMessage.success('学习计划生成成功！')
     emit('next')
 
   } catch (error) {
-    console.error('生成计划失败:', error)
-  }
-}
+    if (error instanceof Error) {
+      // 表单验证错误
+      if (error.message.includes('validation')) {
+        handleValidationError('表单验证失败', { error })
+        return
+      }
+    }
 
-// 获取格式化的当前日期
-const getCurrentDateString = (): string => {
-  const today = new Date()
-  const year = today.getFullYear()
-  const month = String(today.getMonth() + 1).padStart(2, '0')
-  const day = String(today.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+    handleAlgorithmError('生成学习计划失败', {
+      error,
+      settings: settings.value,
+      wordsCount: words.value.length
+    })
+  }
 }
 
 // 初始化起始日期为当前日期
 const initializeStartDate = () => {
-  const today = getCurrentDateString()
+  try {
+    const today = DateUtils.today()
 
-  if (!settings.value.startDate) {
-    // 如果没有设置起始日期，设置为当前日期的字符串格式
-    settings.value.startDate = today
-  } else {
-    // 如果已设置日期，检查是否为字符串格式
-    const startDate = typeof settings.value.startDate === 'string'
-      ? settings.value.startDate
-      : new Date(settings.value.startDate).toISOString().split('T')[0]
+    if (!settings.value.startDate) {
+      // 如果没有设置起始日期，设置为当前日期
+      settings.value.startDate = today
+      return
+    }
 
-    // 检查日期是否有效
-    const parsedDate = new Date(startDate)
-    if (isNaN(parsedDate.getTime()) || parsedDate < new Date(today)) {
-      // 如果日期无效或是过去的日期，设置为今天
+    // 验证现有日期
+    if (!DateUtils.isValidDateString(settings.value.startDate)) {
+      settings.value.startDate = today
+      return
+    }
+
+    // 检查是否为过去的日期
+    const selectedDate = DateUtils.parseDate(settings.value.startDate)
+    const todayDate = DateUtils.parseDate(today)
+
+    if (selectedDate < todayDate) {
       settings.value.startDate = today
     }
+  } catch (error) {
+    handleValidationError('初始化起始日期失败', { error, startDate: settings.value.startDate })
+    settings.value.startDate = DateUtils.today()
   }
 }
 

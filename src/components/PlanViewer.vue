@@ -193,6 +193,7 @@ import { useEbbinghaus } from '@/composables/useEbbinghaus'
 import type { DailyTask } from '@/types'
 import type { ChartTooltipParams } from '@/types/excel'
 import * as echarts from 'echarts'
+import { logger } from '@/utils/logger'
 
 const emit = defineEmits<{
   back: []
@@ -364,7 +365,7 @@ const regeneratePlan = () => {
 
 // 自动生成计划
 const autoGeneratePlan = async () => {
-  console.log('autoGeneratePlan called', {
+  logger.log('autoGeneratePlan called', {
     hasPlan: !!safePlan.value,
     planFromEbbinghaus: !!plan.value,
     wordsLength: safeWords.value?.length,
@@ -373,21 +374,21 @@ const autoGeneratePlan = async () => {
   })
 
   if (!plan.value && safeWords.value && safeWords.value.length > 0 && safeSettings.value) {
-    console.log('Starting auto generation...')
+    logger.log('Starting auto generation...')
     try {
       await generateStudyPlan(safeWords.value, safeSettings.value)
-      console.log('Plan generated successfully', {
+      logger.log('Plan generated successfully', {
         plan: !!plan.value,
         planTasks: plan.value?.tasks?.length,
         planStats: !!planStats.value
       })
       // 不在这里显示成功消息，由generateStudyPlan的调用者处理
     } catch (error) {
-      console.error('自动生成计划失败:', error)
+      logger.error('自动生成计划失败:', error)
       ElMessage.error('计划生成失败，请重新生成')
     }
   } else {
-    console.log('Auto generation conditions not met, plan already exists')
+    logger.log('Auto generation conditions not met, plan already exists')
   }
 }
 
@@ -413,7 +414,7 @@ const handleResize = () => {
 // 监听计划变化，自动生成
 watch([safePlan, safeWords, safeSettings], () => {
   if (!safePlan.value && safeWords.value && safeWords.value.length > 0 && safeSettings.value) {
-    console.log('Watch triggered - attempting auto generation')
+    logger.log('Watch triggered - attempting auto generation')
     autoGeneratePlan()
   }
 
@@ -436,7 +437,7 @@ watch([safePlan, safeWords, safeSettings], () => {
 // 监听计划生成完成，重新绘制图表
 watch(planStats, (newStats) => {
   if (newStats) {
-    console.log('Plan stats updated, redrawing chart')
+    logger.log('Plan stats updated, redrawing chart')
     nextTick(() => {
       drawLoadChart()
     })
@@ -445,7 +446,7 @@ watch(planStats, (newStats) => {
 
 onMounted(() => {
   nextTick(() => {
-    console.log('PlanViewer mounted, checking auto generation')
+    logger.log('PlanViewer mounted, checking auto generation')
     // 检查是否需要自动生成
     if (!safePlan.value && safeWords.value && safeWords.value.length > 0 && safeSettings.value) {
       autoGeneratePlan()
@@ -468,7 +469,7 @@ onUnmounted(() => {
   // 移除事件监听器
   window.removeEventListener('resize', handleResize)
 
-  console.log('PlanViewer unmounted, resources cleaned up')
+  logger.log('PlanViewer unmounted, resources cleaned up')
 })
 </script>
 

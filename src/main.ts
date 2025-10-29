@@ -4,6 +4,7 @@ import 'element-plus/dist/index.css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 import App from './App.vue'
+import '@/utils/errorHandler' // 初始化全局错误处理
 
 const app = createApp(App)
 

@@ -132,7 +132,7 @@ function createWindow(): void {
 // 部分API在ready事件触发后才能使用
 app.whenReady().then(() => {
   // 设置应用ID (Windows/macOS)
-  app.setAppUserModelId('com.pxvp.rememberwords.app')
+  app.setAppUserModelId('com.rememberwords.app')
 
   // 设置应用名称 (Windows和macOS)
   const appName = config.app?.shortName || config.app?.name || '艾宾浩斯学习计划工具'
@@ -140,10 +140,10 @@ app.whenReady().then(() => {
 
   // Windows下设置用户模型ID和显示名称
   if (process.platform === 'win32') {
-    app.setAppUserModelId('com.pxvp.rememberwords.app')
+    app.setAppUserModelId('com.rememberwords.app')
     // 设置任务栏显示的应用名称
     if (mainWindow) {
-      app.setAppUserModelId('com.pxvp.rememberwords.app')
+      app.setAppUserModelId('com.rememberwords.app')
     }
   }
 
@@ -290,6 +290,19 @@ ipcMain.handle('app-name', () => {
 
 ipcMain.handle('is-dev', () => {
   return isDev
+})
+
+// 文件操作 IPC 处理程序
+ipcMain.handle('show-message-box', async (event, options) => {
+  return dialog.showMessageBox(mainWindow!, options)
+})
+
+ipcMain.handle('show-save-dialog', async (event, options) => {
+  return dialog.showSaveDialog(mainWindow!, options)
+})
+
+ipcMain.handle('show-open-dialog', async (event, options) => {
+  return dialog.showOpenDialog(mainWindow!, options)
 })
 
 // 处理证书错误（仅在开发环境）

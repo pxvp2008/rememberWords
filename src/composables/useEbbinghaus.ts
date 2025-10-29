@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import type { Word, StudySettings, DailyTask, StudyPlan } from '@/types'
-import { EBBINGHAUS_INTERVALS } from '@/types'
+import { EBBINGHAUS_INTERVALS, DateUtils } from '@/types'
+import { logger } from '@/utils/logger'
 
 /**
  * 艾宾浩斯遗忘曲线算法组合式函数
@@ -19,28 +20,7 @@ export function useEbbinghaus() {
   /** 是否正在生成计划的加载状态 */
   const isGenerating = ref(false)
 
-  /**
-   * 日期工具函数：添加指定天数到给定日期
-   *
-   * @param date 基础日期
-   * @param days 要添加的天数
-   * @returns 计算后的新日期
-   */
-  const addDays = (date: Date, days: number): Date => {
-    const result = new Date(date)
-    result.setDate(result.getDate() + days)
-    return result
-  }
-
-  /**
-   * 日期工具函数：格式化日期为YYYY-MM-DD字符串
-   *
-   * @param date 要格式化的日期
-   * @returns 格式化后的日期字符串
-   */
-  const formatDate = (date: Date): string => {
-    return date.toISOString().split('T')[0]
-  }
+  // 使用统一的DateUtils进行日期处理
 
   /**
    * 核心算法：生成基于艾宾浩斯遗忘曲线的学习计划
@@ -57,10 +37,10 @@ export function useEbbinghaus() {
    * @returns 生成的完整学习计划
    */
   const generatePlan = (words: Word[], settings: StudySettings): StudyPlan => {
-    console.log('🎯 开始生成艾宾浩斯学习计划')
-    console.log(`📊 输入参数: 单词数=${words.length}, 每日新学=${settings.dailyNew}, 每日最大复习=${settings.maxReview}`)
-    console.log(`📅 起始日期: ${settings.startDate}`)
-    console.log(`🔄 艾宾浩斯间隔: [${EBBINGHAUS_INTERVALS.join(', ')}]天`)
+    logger.log('🎯 开始生成艾宾浩斯学习计划')
+    logger.log(`📊 输入参数: 单词数=${words.length}, 每日新学=${settings.dailyNew}, 每日最大复习=${settings.maxReview}`)
+    logger.log(`📅 起始日期: ${settings.startDate}`)
+    logger.log(`🔄 艾宾浩斯间隔: [${EBBINGHAUS_INTERVALS.join(', ')}]天`)
 
     const tasks: DailyTask[] = []
     /** 复习任务队列，存储所有待复习的单词 */
@@ -70,8 +50,7 @@ export function useEbbinghaus() {
 
     // 为主周期的每一天生成学习任务
     for (let day = 0; day < settings.period; day++) {
-      const currentDate = addDays(settings.startDate, day)
-      const dateString = formatDate(currentDate)
+      const dateString = DateUtils.addDays(settings.startDate, day)
 
       const newWords: Word[] = []
       const reviewWords: Word[] = []
@@ -89,8 +68,7 @@ export function useEbbinghaus() {
           // 每个复习时间点都从学习日开始计算，这是正确的艾宾浩斯实现
           const reviewDates: string[] = []
           for (const interval of EBBINGHAUS_INTERVALS) {
-            const reviewDate = addDays(currentDate, interval)
-            const reviewDateStr = formatDate(reviewDate)
+            const reviewDateStr = DateUtils.addDays(dateString, interval)
             reviewQueue.push({
               word,
               reviewDate: reviewDateStr,
@@ -101,10 +79,10 @@ export function useEbbinghaus() {
 
           // 调试：显示每个新单词的复习安排
           if (wordIndex <= 5) { // 只显示前5个单词，避免日志过多
-            console.log(`📖 第${wordIndex}个单词 "${word.word}" 的复习安排:`)
-            console.log(`   学习日期: ${dateString}`)
-            console.log(`   复习日期: [${reviewDates.join(', ')}]`)
-            console.log(`   间隔天数: [${EBBINGHAUS_INTERVALS.join(', ')}]`)
+            logger.log(`📖 第${wordIndex}个单词 "${word.word}" 的复习安排:`)
+            logger.log(`   学习日期: ${dateString}`)
+            logger.log(`   复习日期: [${reviewDates.join(', ')}]`)
+            logger.log(`   间隔天数: [${EBBINGHAUS_INTERVALS.join(', ')}]`)
           }
         }
       }
@@ -128,7 +106,7 @@ export function useEbbinghaus() {
 
       // 如果当天的复习任务超过了最大复习量，将剩余的复习任务延迟到下一天
       if (todayReviews.length > settings.maxReview) {
-        const nextDate = formatDate(addDays(currentDate, 1))
+        const nextDate = DateUtils.addDays(dateString, 1)
         for (let i = settings.maxReview; i < todayReviews.length; i++) {
           reviewQueue.push({
             ...todayReviews[i],
@@ -147,16 +125,16 @@ export function useEbbinghaus() {
       // 调试：显示每天的学习任务摘要
       const totalTasks = newWords.length + reviewWords.length
       if (totalTasks > 0 || day < 10) { // 前10天或有任何任务的日期都显示
-        console.log(`📅 第${day + 1}天 (${dateString}):`)
-        console.log(`   新学单词: ${newWords.length}个 ${newWords.map(w => w.word).join(', ')}`)
-        console.log(`   复习单词: ${reviewWords.length}个 ${reviewWords.map(w => w.word).join(', ')}`)
-        console.log(`   总任务: ${totalTasks}个`)
-        console.log(`   复习队列剩余: ${reviewQueue.length}个`)
+        logger.log(`📅 第${day + 1}天 (${dateString}):`)
+        logger.log(`   新学单词: ${newWords.length}个 ${newWords.map(w => w.word).join(', ')}`)
+        logger.log(`   复习单词: ${reviewWords.length}个 ${reviewWords.map(w => w.word).join(', ')}`)
+        logger.log(`   总任务: ${totalTasks}个`)
+        logger.log(`   复习队列剩余: ${reviewQueue.length}个`)
       }
 
       // 优化：如果所有单词都已学习完成且没有待复习任务，可以提前结束
       if (wordIndex >= words.length && reviewQueue.length === 0) {
-        console.log(`✅ 学习计划完成: 总共${day + 1}天`)
+        logger.log(`✅ 学习计划完成: 总共${day + 1}天`)
         break
       }
     }
@@ -167,20 +145,20 @@ export function useEbbinghaus() {
     const totalReviewTasks = tasks.reduce((sum, task) => sum + task.reviewWords.length, 0)
     const totalStudyTasks = tasks.reduce((sum, task) => sum + task.newWords.length + task.reviewWords.length, 0)
 
-    console.log('📊 学习计划生成完成统计:')
-    console.log(`   总天数: ${totalDays}天`)
-    console.log(`   总单词数: ${totalNewWords}个`)
-    console.log(`   总复习任务: ${totalReviewTasks}个`)
-    console.log(`   总学习任务: ${totalStudyTasks}个`)
-    console.log(`   平均每日任务: ${(totalStudyTasks / totalDays).toFixed(1)}个`)
+    logger.log('📊 学习计划生成完成统计:')
+    logger.log(`   总天数: ${totalDays}天`)
+    logger.log(`   总单词数: ${totalNewWords}个`)
+    logger.log(`   总复习任务: ${totalReviewTasks}个`)
+    logger.log(`   总学习任务: ${totalStudyTasks}个`)
+    logger.log(`   平均每日任务: ${(totalStudyTasks / totalDays).toFixed(1)}个`)
 
     // 验证艾宾浩斯间隔是否正确
     const expectedReviews = totalNewWords * EBBINGHAUS_INTERVALS.length
-    console.log(`✅ 艾宾浩斯验证: 期望复习次数=${expectedReviews}, 实际安排=${totalReviewTasks}`)
+    logger.log(`✅ 艾宾浩斯验证: 期望复习次数=${expectedReviews}, 实际安排=${totalReviewTasks}`)
     if (totalReviewTasks === expectedReviews) {
-      console.log(`   🎉 复习安排完全正确!`)
+      logger.log(`   🎉 复习安排完全正确!`)
     } else {
-      console.log(`   ⚠️  复习安排可能有遗漏或重复`)
+      logger.log(`   ⚠️  复习安排可能有遗漏或重复`)
     }
 
     return {

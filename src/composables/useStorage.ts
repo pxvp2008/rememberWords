@@ -1,5 +1,7 @@
 import { ref, watch } from 'vue'
 import type { Word, StudySettings, StudyPlan } from '@/types'
+import { DateUtils } from '@/types'
+import { handleStorageError } from '@/utils/errorHandler'
 
 const STORAGE_KEYS = {
   WORDS: 'rememberwords_words',
@@ -11,7 +13,7 @@ const DEFAULT_SETTINGS: StudySettings = {
   period: 30,
   dailyNew: 5,
   maxReview: 10,
-  startDate: new Date().toISOString().split('T')[0]
+  startDate: DateUtils.today()
 }
 
 export function useStorage() {
@@ -21,7 +23,7 @@ export function useStorage() {
       const data = localStorage.getItem(STORAGE_KEYS.WORDS)
       return data ? JSON.parse(data) : []
     } catch (error) {
-      console.error('读取单词数据失败:', error)
+      handleStorageError('读取单词数据失败', { error })
       return []
     }
   }
@@ -33,17 +35,17 @@ export function useStorage() {
         const settings = JSON.parse(data)
         // 保持startDate为字符串格式，确保与组件一致
         if (settings.startDate && typeof settings.startDate !== 'string') {
-          settings.startDate = new Date(settings.startDate).toISOString().split('T')[0]
+          settings.startDate = DateUtils.formatDate(new Date(settings.startDate))
         }
         return { ...DEFAULT_SETTINGS, ...settings }
       }
     } catch (error) {
-      console.error('读取设置数据失败:', error)
+      handleStorageError('读取设置数据失败', { error })
     }
     // 确保总是返回当前日期作为默认起始日期
     return {
       ...DEFAULT_SETTINGS,
-      startDate: new Date().toISOString().split('T')[0]
+      startDate: DateUtils.today()
     }
   }
 
@@ -54,12 +56,12 @@ export function useStorage() {
         const plan = JSON.parse(data)
         // 确保日期是字符串格式，与组件保持一致
         if (plan.settings.startDate && typeof plan.settings.startDate !== 'string') {
-          plan.settings.startDate = new Date(plan.settings.startDate).toISOString().split('T')[0]
+          plan.settings.startDate = DateUtils.formatDate(new Date(plan.settings.startDate))
         }
         return plan
       }
     } catch (error) {
-      console.error('读取计划数据失败:', error)
+      handleStorageError('读取计划数据失败', { error })
     }
     return null
   }
@@ -69,7 +71,7 @@ export function useStorage() {
     try {
       localStorage.setItem(STORAGE_KEYS.WORDS, JSON.stringify(words))
     } catch (error) {
-      console.error('保存单词数据失败:', error)
+      handleStorageError('保存单词数据失败', { error })
       throw new Error('存储空间不足，请清理浏览器数据')
     }
   }
@@ -78,7 +80,7 @@ export function useStorage() {
     try {
       localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings))
     } catch (error) {
-      console.error('保存设置数据失败:', error)
+      handleStorageError('保存设置数据失败', { error })
       throw new Error('存储空间不足，请清理浏览器数据')
     }
   }
@@ -87,7 +89,7 @@ export function useStorage() {
     try {
       localStorage.setItem(STORAGE_KEYS.PLAN, JSON.stringify(plan))
     } catch (error) {
-      console.error('保存计划数据失败:', error)
+      handleStorageError('保存计划数据失败', { error })
       throw new Error('存储空间不足，请清理浏览器数据')
     }
   }
@@ -108,7 +110,7 @@ export function useStorage() {
     localStorage.removeItem(STORAGE_KEYS.PLAN)
 
     // 使用数组解构确保响应式更新
-    const currentDate = new Date().toISOString().split('T')[0]
+    const currentDate = DateUtils.today()
     words.value.splice(0, words.value.length) // 清空数组但保持响应性
     settings.value = { ...DEFAULT_SETTINGS, startDate: currentDate }
     plan.value = null
@@ -144,7 +146,7 @@ export function useStorage() {
       localStorage.removeItem(testKey)
       return true
     } catch (error) {
-      console.error('localStorage不可用:', error)
+      handleStorageError('localStorage不可用', { error })
       return false
     }
   }
@@ -175,7 +177,7 @@ export function useStorage() {
         available: checkStorageAvailability()
       }
     } catch (error) {
-      console.error('获取存储使用情况失败:', error)
+      handleStorageError('获取存储使用情况失败', { error })
       return {
         totalSize: 0,
         totalSizeText: '0 B',
