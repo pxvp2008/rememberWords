@@ -374,18 +374,47 @@ export function useEbbinghaus() {
   const planStats = computed(() => {
     if (!plan.value) return null
 
-    const totalDays = plan.value.tasks.length
+    // 每日详细统计数据，用于图表展示（包含所有日期，包括没有任务的日期）
+    const dailyStats = (() => {
+      if (plan.value.tasks.length === 0) return []
+
+      const firstDate = plan.value.tasks[0].date
+      const lastDate = plan.value.tasks[plan.value.tasks.length - 1].date
+
+      // 生成完整日期范围
+      const fullDateRange = []
+      let currentDate = firstDate
+
+      while (currentDate <= lastDate) {
+        fullDateRange.push(currentDate)
+        currentDate = DateUtils.addDays(currentDate, 1)
+      }
+
+      // 为每个日期生成统计数据
+      return fullDateRange.map(date => {
+        const task = plan.value.tasks.find(t => t.date === date)
+        if (task) {
+          return {
+            date: task.date,
+            newCount: task.newWords.length,
+            reviewCount: task.reviewWords.length,
+            totalCount: task.newWords.length + task.reviewWords.length
+          }
+        } else {
+          return {
+            date: date,
+            newCount: 0,
+            reviewCount: 0,
+            totalCount: 0
+          }
+        }
+      })
+    })()
+
+    const totalDays = dailyStats.length
     const totalNewWords = plan.value.originalWords.length
     const totalReviews = plan.value.tasks.reduce((sum, task) => sum + task.reviewWords.length, 0)
     const totalStudyTasks = plan.value.tasks.reduce((sum, task) => sum + task.newWords.length + task.reviewWords.length, 0)
-
-    // 每日详细统计数据，用于图表展示
-    const dailyStats = plan.value.tasks.map(task => ({
-      date: task.date,
-      newCount: task.newWords.length,
-      reviewCount: task.reviewWords.length,
-      totalCount: task.newWords.length + task.reviewWords.length
-    }))
 
     return {
       totalDays,
