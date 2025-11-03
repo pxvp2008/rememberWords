@@ -285,34 +285,258 @@ const disabledDate = (time: Date) => {
 
 
 
+// 使用实际艾宾浩斯算法预估学习天数和日历天数
+const estimateStudyDaysWithEbbinghaus = (totalWords: number, dailyNew: number, maxReview: number, skipWeekends: boolean, startDate: string): { studyDays: number; calendarDays: number; weekendDays: number; weekendCount: number; endDate: string } => {
+  if (totalWords === 0 || dailyNew === 0) return { studyDays: 0, calendarDays: 0, weekendDays: 0, weekendCount: 0, endDate: startDate }
+
+  // 创建简化的单词数据用于预估
+  const mockWords: Array<{ id: string; word: string; meaning: string }> = []
+  for (let i = 0; i < totalWords; i++) {
+    mockWords.push({
+      id: `word_${i}`,
+      word: `word_${i}`,
+      meaning: `meaning_${i}`
+    })
+  }
+
+  try {
+    const tasks = []
+    let reviewQueue = []
+    let wordIndex = 0
+
+    if (skipWeekends) {
+      // 跳过周末模式
+      let actualCalendarDay = 0
+      const MAX_DAYS = 730
+
+      while (wordIndex < totalWords || reviewQueue.length > 0) {
+        if (actualCalendarDay > MAX_DAYS) break
+
+        let dateString = DateUtils.addDays(startDate, actualCalendarDay)
+
+        if (DateUtils.isWeekend(dateString)) {
+          actualCalendarDay++
+          continue
+        }
+
+        const newWords: any[] = []
+        const reviewWords: any[] = []
+
+        // 分配新学单词
+        const newWordsCount = Math.min(dailyNew, totalWords - wordIndex)
+        for (let i = 0; i < newWordsCount; i++) {
+          if (wordIndex < totalWords) {
+            const word = mockWords[wordIndex]
+            newWords.push(word)
+            wordIndex++
+
+            // 安排复习任务
+            for (const interval of EBBINGHAUS_INTERVALS) {
+              let reviewDateStr = DateUtils.addDays(dateString, interval)
+              while (DateUtils.isWeekend(reviewDateStr)) {
+                reviewDateStr = DateUtils.addDays(reviewDateStr, 1)
+              }
+              reviewQueue.push({
+                word,
+                reviewDate: reviewDateStr,
+                reviewCount: EBBINGHAUS_INTERVALS.indexOf(interval) + 1
+              })
+            }
+          }
+        }
+
+        // 处理复习任务
+        const todayReviews = reviewQueue.filter(item => item.reviewDate === dateString)
+        const reviewCount = Math.min(todayReviews.length, maxReview)
+
+        todayReviews.sort((a, b) => a.reviewCount - b.reviewCount)
+        for (let i = 0; i < Math.min(reviewCount, todayReviews.length); i++) {
+          const reviewItem = todayReviews[i]
+          reviewWords.push(reviewItem.word)
+        }
+
+        // 处理延期复习任务
+        if (todayReviews.length > maxReview) {
+          const remainingReviews = todayReviews.slice(maxReview)
+          reviewQueue = reviewQueue.filter(item => item.reviewDate !== dateString)
+
+          let nextDate = DateUtils.addDays(dateString, 1)
+          while (DateUtils.isWeekend(nextDate)) {
+            nextDate = DateUtils.addDays(nextDate, 1)
+          }
+
+          for (const reviewItem of remainingReviews) {
+            reviewQueue.push({
+              word: reviewItem.word,
+              reviewDate: nextDate,
+              reviewCount: reviewItem.reviewCount
+            })
+          }
+        } else {
+          reviewQueue = reviewQueue.filter(item => item.reviewDate !== dateString)
+        }
+
+        // 保存当天的任务
+        if (newWords.length > 0 || reviewWords.length > 0) {
+          tasks.push({
+            date: dateString,
+            newWords,
+            reviewWords
+          })
+        }
+
+        actualCalendarDay++
+      }
+
+      // 计算实际的日历天数和准确的周末信息
+      const studyDays = tasks.length
+      let calendarDays = actualCalendarDay
+      let endDate = DateUtils.addDays(startDate, calendarDays - 1)
+
+      // 在跳过周末模式下，如果最后一天是周五，包含接下来的周末
+      const lastDate = new Date(endDate + 'T00:00:00.000Z')
+      if (lastDate.getDay() === 5) { // 如果是周五
+        // 包含接下来的周末，因为这是计划的自然延伸
+        calendarDays += 2
+        endDate = DateUtils.addDays(endDate, 2)
+      } else if (lastDate.getDay() === 6) { // 如果是周六
+        calendarDays += 1
+        endDate = DateUtils.addDays(endDate, 1)
+      }
+
+      // 准确计算跳过的周末信息
+      let weekendDays = 0
+      let weekendCount = 0
+      let currentWeekend = false
+
+      for (let i = 0; i < calendarDays; i++) {
+        const currentDate = DateUtils.addDays(startDate, i)
+        if (DateUtils.isWeekend(currentDate)) {
+          weekendDays++
+          if (!currentWeekend) {
+            weekendCount++
+            currentWeekend = true
+          }
+        } else {
+          currentWeekend = false
+        }
+      }
+
+      return { studyDays, calendarDays, weekendDays, weekendCount, endDate }
+
+    } else {
+      // 传统模式（包含周末）
+      let dayCount = 0
+      const MAX_DAYS = 730
+
+      while (wordIndex < totalWords || reviewQueue.length > 0) {
+        if (dayCount > MAX_DAYS) break
+
+        const dateString = DateUtils.addDays(startDate, dayCount)
+        dayCount++
+
+        const newWords: any[] = []
+        const reviewWords: any[] = []
+
+        // 分配新学单词
+        const newWordsCount = Math.min(dailyNew, totalWords - wordIndex)
+        for (let i = 0; i < newWordsCount; i++) {
+          if (wordIndex < totalWords) {
+            const word = mockWords[wordIndex]
+            newWords.push(word)
+            wordIndex++
+
+            // 安排复习任务
+            for (const interval of EBBINGHAUS_INTERVALS) {
+              const reviewDateStr = DateUtils.addDays(dateString, interval)
+              reviewQueue.push({
+                word,
+                reviewDate: reviewDateStr,
+                reviewCount: EBBINGHAUS_INTERVALS.indexOf(interval) + 1
+              })
+            }
+          }
+        }
+
+        // 处理复习任务
+        const todayReviews = reviewQueue.filter(item => item.reviewDate === dateString)
+        const reviewCount = Math.min(todayReviews.length, maxReview)
+
+        todayReviews.sort((a, b) => a.reviewCount - b.reviewCount)
+        for (let i = 0; i < Math.min(reviewCount, todayReviews.length); i++) {
+          const reviewItem = todayReviews[i]
+          reviewWords.push(reviewItem.word)
+        }
+
+        // 处理延期复习任务
+        if (todayReviews.length > maxReview) {
+          const remainingReviews = todayReviews.slice(maxReview)
+          reviewQueue = reviewQueue.filter(item => item.reviewDate !== dateString)
+
+          const nextDate = DateUtils.addDays(dateString, 1)
+          for (const reviewItem of remainingReviews) {
+            reviewQueue.push({
+              word: reviewItem.word,
+              reviewDate: nextDate,
+              reviewCount: reviewItem.reviewCount
+            })
+          }
+        } else {
+          reviewQueue = reviewQueue.filter(item => item.reviewDate !== dateString)
+        }
+
+        // 保存当天的任务
+        if (newWords.length > 0 || reviewWords.length > 0) {
+          tasks.push({
+            date: dateString,
+            newWords,
+            reviewWords
+          })
+        }
+      }
+
+      const studyDays = tasks.length
+      const calendarDays = dayCount
+      const endDate = DateUtils.addDays(startDate, calendarDays - 1)
+
+      return { studyDays, calendarDays, weekendDays: 0, weekendCount: 0, endDate }
+    }
+
+  } catch (error) {
+    console.warn('预估学习天数失败，使用简化计算:', error)
+    // 降级到简化计算
+    const studyDays = Math.ceil(totalWords / dailyNew)
+    const calendarDays = skipWeekends ? studyDays + Math.floor(studyDays / 5) * 2 : studyDays
+    const endDate = DateUtils.addDays(startDate, calendarDays - 1)
+    const weekendDays = skipWeekends ? Math.floor(studyDays / 5) * 2 : 0
+    const weekendCount = skipWeekends ? Math.floor(studyDays / 5) : 0
+    return { studyDays, calendarDays, weekendDays, weekendCount, endDate }
+  }
+}
+
 // 统计信息
 const statisticsText = computed(() => {
   if (words.value.length === 0) return ''
 
   const totalDays = settings.value.period
   const totalNewWords = Math.min(words.value.length, settings.value.dailyNew * totalDays)
-  const estimatedStudyDays = Math.ceil(words.value.length / settings.value.dailyNew)
 
+  // 使用实际艾宾浩斯算法预估学习天数和日历天数
+  const estimation = estimateStudyDaysWithEbbinghaus(
+    words.value.length,
+    settings.value.dailyNew,
+    settings.value.maxReview,
+    settings.value.skipWeekends,
+    settings.value.startDate
+  )
+
+  // 使用预估算法返回的准确数据
   if (settings.value.skipWeekends) {
-    // 跳过周末模式：计算实际的日历天数
-    let calendarDays = 0
-    let studyDaysCount = 0
-    let currentDate = DateUtils.parseDate(settings.value.startDate)
-
-    while (studyDaysCount < estimatedStudyDays) {
-      const dateString = DateUtils.formatDate(currentDate)
-      if (!DateUtils.isWeekend(dateString)) {
-        studyDaysCount++
-      }
-      calendarDays++
-      currentDate.setDate(currentDate.getDate() + 1)
-    }
-
-    const skippedWeekends = calendarDays - estimatedStudyDays
-    return `预计需要 ${estimatedStudyDays} 个学习日（工作日），日历时间跨度 ${calendarDays} 天（跳过 ${skippedWeekends} 个周末），总计安排约 ${totalNewWords * 6} 次学习任务（含复习）`
+    // 跳过周末模式：使用准确的周末数量和天数
+    return `预计需要 ${estimation.studyDays} 个学习日（工作日），日历时间跨度 ${estimation.calendarDays} 天（跳过 ${estimation.weekendCount} 个周末，共 ${estimation.weekendDays} 天），总计安排约 ${totalNewWords * 6} 次学习任务（含复习）`
   } else {
     // 传统模式：包含所有日期
-    return `预计需要 ${estimatedStudyDays} 天完成所有单词学习，总计安排约 ${totalNewWords * 6} 次学习任务（含复习）`
+    return `预计需要 ${estimation.studyDays} 天完成所有单词学习，总计安排约 ${totalNewWords * 6} 次学习任务（含复习）`
   }
 })
 
