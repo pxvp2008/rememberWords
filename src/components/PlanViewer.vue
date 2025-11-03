@@ -17,21 +17,29 @@
       </div>
 
       <!-- 统计信息 -->
-      <div v-else-if="hasPlanData">
-        <el-row :gutter="20">
-          <el-col :span="6">
-            <el-statistic title="学习周期" :value="planStats?.totalDays || 0" suffix="天" />
-          </el-col>
-          <el-col :span="6">
-            <el-statistic title="总单词数" :value="planStats?.totalNewWords || 0" />
-          </el-col>
-          <el-col :span="6">
-            <el-statistic title="总复习次数" :value="planStats?.totalReviews || 0" />
-          </el-col>
-          <el-col :span="6">
-            <el-statistic title="平均每日" :value="planStats?.averageDailyLoad || 0" />
-          </el-col>
-        </el-row>
+      <div v-else-if="hasPlanData" class="stats-section">
+        <div class="stats-container">
+          <div class="stat-item" v-for="(stat, index) in statsData" :key="index" :class="`stat-item-${index + 1}`">
+            <div class="stat-icon">
+              <el-icon><component :is="stat.icon" /></el-icon>
+              <div class="stat-icon-bg"></div>
+            </div>
+            <div class="stat-content">
+              <div class="stat-title">{{ stat.title }}</div>
+              <div class="stat-value">
+                <span class="stat-number">{{ formatNumber(stat.value) }}</span>
+                <span class="stat-unit">{{ stat.unit }}</span>
+              </div>
+              <div class="stat-description" v-if="stat.description">{{ stat.description }}</div>
+            </div>
+            <div class="stat-trend" v-if="stat.trend !== null">
+              <el-icon class="trend-icon" :class="stat.trend > 0 ? 'trend-up' : 'trend-down'">
+                <component :is="stat.trend > 0 ? 'ArrowUp' : 'ArrowDown'" />
+              </el-icon>
+              <span class="trend-value">{{ stat.trend > 0 ? '+' : '' }}{{ Math.abs(stat.trend) }}%</span>
+            </div>
+          </div>
+        </div>
 
         <!-- 学习负荷分布图 -->
         <div class="chart-container" v-if="planStats">
@@ -186,7 +194,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { DataAnalysis, Calendar } from '@element-plus/icons-vue'
+import { DataAnalysis, Calendar, Timer, Document, TrendCharts, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { useStorage } from '@/composables/useStorage'
 import { useExcel } from '@/composables/useExcel'
 import { useEbbinghaus } from '@/composables/useEbbinghaus'
@@ -226,6 +234,72 @@ const selectedTask = ref<DailyTask | null>(null)
 const activeTab = ref('new')
 const chartRef = ref<HTMLElement>()
 let chartInstance: echarts.ECharts | null = null
+
+// 美化后的统计数据
+const statsData = computed(() => {
+  if (!planStats.value) return []
+
+  const stats = [
+    {
+      title: '学习周期',
+      value: planStats.value.totalDays,
+      unit: '天',
+      icon: 'Calendar',
+      description: '从开始到结束的完整时间',
+      trend: null,
+      color: '#409EFF'
+    },
+    {
+      title: '总单词数',
+      value: planStats.value.totalNewWords,
+      unit: '个',
+      icon: 'Document',
+      description: '需要学习的单词总数',
+      trend: null,
+      color: '#67C23A'
+    },
+    {
+      title: '总复习次数',
+      value: planStats.value.totalReviews,
+      unit: '次',
+      icon: 'TrendCharts',
+      description: '计划中的复习任务总数',
+      trend: null,
+      color: '#E6A23C'
+    },
+    {
+      title: '平均每日',
+      value: planStats.value.averageDailyLoad,
+      unit: '个',
+      icon: 'Timer',
+      description: '平均每日学习任务数',
+      trend: null,
+      color: '#F56C6C'
+    }
+  ]
+
+  // 计算趋势指标（可选功能）
+  if (planStats.value.dailyStats && planStats.value.dailyStats.length > 1) {
+    const recentStats = planStats.value.dailyStats.slice(-7) // 最近7天的数据
+    if (recentStats.length >= 2) {
+      const firstAvg = recentStats.slice(0, Math.min(3, recentStats.length)).reduce((sum, item) => sum + item.totalCount, 0) / Math.min(3, recentStats.length)
+      const lastAvg = recentStats.slice(-Math.min(3, recentStats.length)).reduce((sum, item) => sum + item.totalCount, 0) / Math.min(3, recentStats.length)
+      const trend = ((lastAvg - firstAvg) / firstAvg) * 100
+
+      stats[3].trend = Math.round(trend * 10) / 10
+    }
+  }
+
+  return stats
+})
+
+// 格式化大数字显示
+const formatNumber = (num: number): string => {
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1) + 'k'
+  }
+  return num.toString()
+}
 
 // 获取指定日期的任务
 const getDayTask = (date: string): DailyTask | undefined => {
@@ -495,6 +569,191 @@ onUnmounted(() => {
 
 .view-controls {
   margin-left: auto;
+}
+
+/* 统计指标美化样式 */
+.stats-section {
+  padding: 0;
+}
+
+.stats-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 2fr));
+  gap: 16px;
+}
+
+.stat-item {
+  position: relative;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+  border-radius: 15px;
+  padding: 24px;
+  border: 1px solid #e8e8f0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.stat-item:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  border-color: #d4d7f0;
+}
+
+.stat-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--stat-color) 0%, var(--stat-color-light) 100%);
+  opacity: 0.8;
+}
+
+.stat-item-1 {
+  --stat-color: #409EFF;
+  --stat-color-light: #79bbff;
+  --stat-color-rgb: 64, 158, 255;
+}
+
+.stat-item-2 {
+  --stat-color: #67C23A;
+  --stat-color-light: #95d475;
+  --stat-color-rgb: 103, 194, 58;
+}
+
+.stat-item-3 {
+  --stat-color: #E6A23C;
+  --stat-color-light: #ebb563;
+  --stat-color-rgb: 230, 162, 60;
+}
+
+.stat-item-4 {
+  --stat-color: #F56C6C;
+  --stat-color-light: #f78989;
+  --stat-color-rgb: 245, 108, 108;
+}
+
+.stat-icon {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, var(--stat-color) 0%, var(--stat-color-light) 100%);
+  box-shadow: 0 6px 20px rgba(var(--stat-color-rgb), 0.25);
+}
+
+.stat-icon .el-icon {
+  font-size: 28px;
+  color: #ffffff;
+  z-index: 2;
+  position: relative;
+}
+
+.stat-icon-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--stat-color) 0%, var(--stat-color-light) 100%);
+  opacity: 0.1;
+}
+
+.stat-content {
+  flex: 1;
+}
+
+.stat-title {
+  font-size: 14px;
+  color: #909399;
+  margin-bottom: 8px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.stat-value {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.stat-number {
+  font-size: 32px;
+  font-weight: 700;
+  color: #2c3e50;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-unit {
+  font-size: 16px;
+  color: #909399;
+  font-weight: 500;
+}
+
+.stat-description {
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.5;
+  opacity: 0.9;
+}
+
+.stat-trend {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.trend-icon {
+  font-size: 14px;
+}
+
+.trend-up {
+  color: #67C23A;
+}
+
+.trend-down {
+  color: #F56C6C;
+}
+
+.trend-value {
+  font-weight: 700;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .stats-container {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .stat-item {
+    padding: 20px;
+  }
+
+  .stat-number {
+    font-size: 28px;
+  }
+
+  .stat-trend {
+    position: static;
+    margin-top: 12px;
+    align-self: flex-start;
+  }
 }
 
 .chart-container {
