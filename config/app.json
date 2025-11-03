@@ -2,7 +2,7 @@
   "app": {
     "name": "RememberWords",
     "shortName": "艾宾浩斯学习计划工具",
-    "version": "1.0.2",
+    "version": "1.0.4",
     "description": "基于艾宾浩斯遗忘曲线的科学学习方案"
   },
   "server": {

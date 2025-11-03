@@ -1,12 +1,12 @@
 {
   "name": "rememberwords",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "description": "基于艾宾浩斯遗忘曲线的智能学习计划工具",
   "main": "dist-electron/main.js",
   "homepage": "https://github.com/pxvp2008/rememberWords",
   "author": {
     "name": "pxvp",
-    "email": "pxvp2008@gmail.com"
+    "email": "pxvp2008@126.com"
   },
   "license": "MIT",
   "type": "module",
@@ -111,7 +111,7 @@
       "artifactName": "${productName}-${version}-portable.${ext}"
     },
     "dmg": {
-      "title": "RememberWords 1.0.2",
+      "title": "RememberWords 1.0.4",
       "icon": "assets/icons/icon.icns",
       "iconSize": 100,
       "contents": [
